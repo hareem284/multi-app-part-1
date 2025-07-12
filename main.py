@@ -1,4 +1,5 @@
 import re
+import io
 from io import BytesIO
 import streamlit as st
 import config
@@ -20,6 +21,44 @@ def generate_response(prompt,temperature=0.3):
     except Exception as e:
         print("the error has been caught.")
 
+#defining image generation
+def image_generation_response(prompt):
+    try:
+        model="gemini-2.0-flash-preview-image-generation"
+        contents=[types.Content(role='user',parts=[types.Part.from_text(text=prompt)],),]
+        generate_content_config=types.GenerateContentConfig(
+            response_modalities=['IMAGE','TEXT'],
+            response_mime_type="text/plain"
+            )
+            #using the streaming aproch
+        for chunk in client.model.generate_content_stream(
+                model=model,
+                content=contents,
+                config=generate_content_config):
+            if(chunk.candidates is None or chunk.candidates[0].content is None or chunk.candidate[0].content.parts is None):
+                    continue
+            if(chunk.candidates[0].content.parts[0].inline_data and chunk.candidates[0].content.parts.inline_data.data):
+                    
+                    inline_data=chunk.candidates[0].content.parts[0].inline_data
+                    data_buffer=inline_data
+                    image=Image.open(BytesIO(data_buffer))
+                    return image
+            elif chunk.text:
+                continue
+        return None,"No image was generated"
+    except Exception as e:
+            print("error")
+
+def image_generation():
+    with st.form(key="image_gen_form"):
+        prompt=st.text_area("Image Description",height=100,placeholder="describe the image you want to generate,and pls be specific to get better results.")
+        submit=st.form_submit_button("generating the image")
+        if submit:
+           image=image_generation_response(prompt)
+           if image:
+              st.image(image,caption="Generated Image")    
+           else:
+              print("sorry we have failed to generate the image.")
 
 
 #defining rhe run ai teaching assistent
@@ -85,7 +124,7 @@ def math_mastermind():
                 export_text += f"Q{idx}: {qa['question']}\n"
                 export_text += f"A{idx}: {qa['answer']}\n\n"
 
-            bio = io.BytesIO()
+            bio =io.BytesIO()
             bio.write(export_text.encode("utf-8"))
             bio.seek(0)
 
@@ -181,35 +220,12 @@ def math_mastermind():
         history_html += '</div>'
         st.markdown(history_html, unsafe_allow_html=True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if __name__=="__main__":
-    st.sidebar.title("Choose AI you want")
-    option=st.sidebar.selectbox("",["AI Teaching Assistant","Math MaterMind"])
+    st.sidebar.title("Choose which AI you want")
+    option=st.sidebar.selectbox("",["AI Teaching Assistant","Math MaterMind","image generation"])
+    if option=="AI Teaching Assistant":
+        run_ai_teaching_assistent()
+    elif option=="Math MaterMind":
+        math_mastermind()
+    elif option=="image generation":
+        image_generation()
